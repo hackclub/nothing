@@ -1,9 +1,28 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #000;
+  color: #fff;
+}
+
 body {
   font-family: Gordita, Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  /* Selecting text while dragging bubbles around is just noise — form
+     fields (input/textarea) stay selectable regardless, since browsers
+     don't apply an ancestor's user-select to their own editable text. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 a {
   margin-right: 1rem;
+  color: inherit;
 }
 
 main {
@@ -12,28 +31,518 @@ main {
   margin: 0 auto;
 }
 
-h1 {
-  color: #335d92;
-  text-transform: uppercase;
-  font-size: 4rem;
-  font-weight: 100;
-  line-height: 1.1;
-  margin: 4rem auto;
-  max-width: 14rem;
-}
-
 p {
   max-width: 14rem;
   margin: 2rem auto;
   line-height: 1.35;
 }
 
-@media (min-width: 480px) {
-  h1 {
-    max-width: none;
-  }
+.hero {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  padding: 2rem;
+  text-align: center;
+  overflow: hidden;
+}
 
+.hero-flag {
+  cursor: grab;
+  touch-action: none;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Belt-and-suspenders alongside the `draggable={false}` attribute — an
+     <img>'s native browser drag-and-drop otherwise hijacks the gesture
+     after the first pointermove, so our own drag logic only ever sees a
+     tiny fraction of the actual movement. */
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.hero-flag:active {
+  cursor: grabbing;
+}
+
+/* Without this, every drag-move restarts the elastic transition toward the
+   new target, so fast dragging visually lags behind the actual pointer —
+   and anything popped right after a drag looks like it jumps, since the
+   element hadn't visually caught up to its real (dragged) position yet. */
+.hero-flag.dragging,
+.title-letter.dragging,
+.bubble.dragging {
+  transition: none;
+}
+
+.hero-flag {
+  position: relative;
+  z-index: 1;
+  width: min(320px, 50vw);
+  height: auto;
+  filter: invert(1);
+}
+
+.hero-title {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(4.5rem, 20vw, 14rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 0.85;
+  margin: 0;
+  text-transform: uppercase;
+  /* Only the individual letters below are interactive — not the whole
+     heading's bounding box, which would otherwise shadow bg-bubbles behind
+     it over all the empty space between/around the letters too. */
+  pointer-events: none;
+}
+
+.title-letter {
+  display: inline-block;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.title-letter:active {
+  cursor: grabbing;
+}
+
+/* Generic pop-out for elements that aren't `.bubble`s but should still be
+   poppable (the flag, the title) — same keyframes, no `.bubble` needed. */
+.pop-anim {
+  animation: pop 0.35s ease-out forwards;
+  pointer-events: none;
+}
+
+.bg-bubbles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.bg-bubble {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, var(--border-alpha, 0.3));
+  background:
+    /* specular hotspot - the sun glint */
+    radial-gradient(
+      circle at var(--glint-x, 28%) var(--glint-y, 24%),
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0.28) var(--glint-size, 9%),
+      transparent calc(var(--glint-size, 9%) * 2.4)
+    ),
+    /* fresnel rim - glass reads brighter at grazing angles near the edge */
+    radial-gradient(circle at 50% 50%, transparent 75%, rgba(255, 255, 255, 0.22) 88%, transparent 97%),
+    /* core shading - the sphere curves away from the light on the far side */
+    radial-gradient(
+      circle at calc(100% - var(--glint-x, 28%)) calc(100% - var(--glint-y, 24%)),
+      rgba(0, 0, 0, 0.32) 0%,
+      transparent 60%
+    ),
+    /* ambient bounce light */
+    radial-gradient(circle at 70% 78%, rgba(255, 255, 255, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, transparent 45%, rgba(255, 255, 255, var(--fill-alpha, 0.1)) 100%);
+  box-shadow:
+    inset 3px 3px 8px rgba(255, 255, 255, 0.14),
+    inset -5px -5px 12px rgba(0, 0, 0, 0.4),
+    inset 0 0 14px rgba(255, 255, 255, 0.06);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-name: drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.bg-bubble.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.bg-bubble-pop {
+  animation: pop 0.35s ease-out forwards;
+  pointer-events: none;
+}
+
+.bubble-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  max-width: 60rem;
+}
+
+.bubble {
+  appearance: none;
+  position: relative;
+  color: #fff;
+  border-radius: 999px;
+  backdrop-filter: blur(3px);
+  text-decoration: none;
+  cursor: grab;
+  margin: 0;
+  animation: float 6s ease-in-out infinite;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    scale 0.3s ease,
+    opacity 0.3s ease;
+  touch-action: none;
+}
+
+.bubble:active {
+  cursor: grabbing;
+}
+
+/* Reuses the same pop keyframes as the decorative bubbles. Specificity
+   from the extra class means this always wins over the variant's
+   `animation-duration`/`animation-delay`, regardless of source order. */
+.bubble.bubble-pop {
+  animation: pop 0.35s ease-out forwards;
+  pointer-events: none;
+}
+
+.bubble-cta {
+  padding: 0.85rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background:
+    radial-gradient(circle at 22% 24%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.3) 11%, transparent 28%),
+    radial-gradient(circle at 50% 50%, transparent 72%, rgba(255, 255, 255, 0.2) 87%, transparent 98%),
+    radial-gradient(circle at 78% 76%, rgba(0, 0, 0, 0.28) 0%, transparent 55%),
+    radial-gradient(circle at 78% 82%, rgba(255, 255, 255, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0.14) 100%);
+  box-shadow:
+    inset 3px 3px 10px rgba(255, 255, 255, 0.16),
+    inset -6px -6px 16px rgba(0, 0, 0, 0.4),
+    inset 0 0 20px rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  animation-duration: 6s;
+}
+
+.bubble-cta:hover {
+  box-shadow:
+    inset 3px 3px 10px rgba(255, 255, 255, 0.22),
+    inset -6px -6px 16px rgba(0, 0, 0, 0.42),
+    inset 0 0 26px rgba(255, 255, 255, 0.14),
+    0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+.bubble-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 16rem;
+  padding: 1.5rem 1.75rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background:
+    radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.2) 8%, transparent 22%),
+    radial-gradient(circle at 50% 50%, transparent 74%, rgba(255, 255, 255, 0.18) 88%, transparent 98%),
+    radial-gradient(circle at 30% 82%, rgba(0, 0, 0, 0.26) 0%, transparent 55%),
+    radial-gradient(circle at 25% 85%, rgba(255, 255, 255, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 40%, rgba(255, 255, 255, 0.1) 100%);
+  box-shadow:
+    inset -3px 3px 10px rgba(255, 255, 255, 0.12),
+    inset 4px -4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 22px rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  animation-duration: 7s;
+  animation-delay: -1.5s;
+}
+
+.bubble-info strong {
+  font-size: 1.05rem;
+}
+
+.bubble-author {
+  padding: 1rem 1.5rem;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background:
+    radial-gradient(circle at 18% 78%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.22) 9%, transparent 24%),
+    radial-gradient(circle at 50% 50%, transparent 74%, rgba(255, 255, 255, 0.2) 88%, transparent 98%),
+    radial-gradient(circle at 82% 22%, rgba(0, 0, 0, 0.28) 0%, transparent 55%),
+    radial-gradient(circle at 75% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0.11) 100%);
+  box-shadow:
+    inset 3px -4px 10px rgba(255, 255, 255, 0.12),
+    inset -4px 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 16px rgba(255, 255, 255, 0.09),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  animation-duration: 5s;
+  animation-delay: -3s;
+}
+
+/* These animate the standalone `translate` property (not `transform`) so
+   JS-driven hover-tilt / drag transforms can own `transform` with no fight. */
+@keyframes float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -10px;
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: var(--drift-x, 12px) var(--drift-y, -18px);
+  }
+}
+
+/* Uses the standalone `scale` property (not `transform`) so it doesn't
+   fight with the frozen drift offset or drag position, both of which
+   live in `translate`/`transform` on the same element. */
+@keyframes pop {
+  0% {
+    scale: 1;
+    opacity: 1;
+  }
+  40% {
+    scale: 1.4;
+    opacity: 0.85;
+  }
+  100% {
+    scale: 0.2;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .bg-bubble:not(.bg-bubble-pop) {
+    animation: none;
+  }
+}
+
+@media (min-width: 480px) {
   p {
     max-width: none;
   }
+}
+
+.submit-page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  text-align: left;
+}
+
+.submit-title {
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0 0 2rem;
+}
+
+.submit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  max-width: none;
+  margin: 0;
+}
+
+.field input,
+.field textarea,
+.field select {
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.field select[multiple] {
+  padding: 0.35rem;
+}
+
+.field select[multiple] option {
+  padding: 0.4rem 0.5rem;
+  background: #000;
+}
+
+.field select[multiple] option:checked {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.field-hint {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin: 0;
+  max-width: none;
+}
+
+.form-error {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  font-weight: 700;
+  margin: 0;
+  max-width: none;
+}
+
+.submit-form .bubble-cta {
+  align-self: flex-start;
+  border-radius: 0.6rem;
+}
+
+.submit-form .bubble-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit-link {
+  display: inline-block;
+  margin: 1rem 0;
+  animation: none;
+}
+
+.my-projects {
+  text-align: left;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.project-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.project-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.project-card img {
+  width: 6rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.project-card h4 {
+  margin: 0 0 0.25rem;
+}
+
+.project-card p {
+  margin: 0;
+  max-width: none;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.leaderboard-page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  text-align: left;
+}
+
+.leaderboard-title {
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0 0 2rem;
+}
+
+.leaderboard-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.9rem;
+}
+
+.leaderboard-rank {
+  width: 2.25rem;
+  flex-shrink: 0;
+  font-weight: 900;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.leaderboard-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.leaderboard-name {
+  flex: 1;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-hours {
+  font-weight: 900;
+}
+
+.leaderboard-count {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  width: 5.5rem;
+  text-align: right;
 }
