@@ -1,5 +1,5 @@
 import { createAsync, type RouteDefinition } from "@solidjs/router";
-import { createSignal, onMount, onCleanup, For, Index, type JSX } from "solid-js";
+import { createSignal, onMount, onCleanup, For, Index, Show, type JSX } from "solid-js";
 import { getOptionalUser } from "~/api";
 import { authClient } from "~/lib/auth-client";
 
@@ -362,6 +362,25 @@ export default function Home() {
   const authorDragPop = createBubbleDragPop();
   const flagDragPop = createBubbleDragPop();
 
+  // Without this, a failed sign-in (e.g. a misconfigured server) looks
+  // exactly like a broken/unclickable button — the click fires, the request
+  // fails, and nothing on screen ever says so.
+  const [loginError, setLoginError] = createSignal<string | null>(null);
+  const startLogin = async () => {
+    setLoginError(null);
+    try {
+      const result = await authClient.signIn.oauth2({
+        providerId: "hca",
+        callbackURL: "/dash"
+      });
+      if (result?.error) {
+        setLoginError(result.error.message ?? "Couldn't start login. Try again in a moment.");
+      }
+    } catch {
+      setLoginError("Couldn't start login. Try again in a moment.");
+    }
+  };
+
   return (
     <section class="hero">
       <div class="bg-bubbles" aria-hidden="true">
@@ -442,16 +461,15 @@ export default function Home() {
             onPointerCancel={ctaDragPop.onPointerUp}
             onPointerEnter={ctaTilt.onPointerEnter}
             onPointerLeave={() => !ctaDragPop.dragging() && ctaTilt.onPointerLeave()}
-            onClick={ctaDragPop.guardClick(() =>
-              authClient.signIn.oauth2({
-                providerId: "hca",
-                callbackURL: "/dash"
-              })
-            )}
+            onClick={ctaDragPop.guardClick(startLogin)}
           >
             Login with Hack Club
           </button>
         )}
+
+        <Show when={loginError()}>
+          <p class="login-error">{loginError()}</p>
+        </Show>
 
         <p
           class="bubble bubble-info"
