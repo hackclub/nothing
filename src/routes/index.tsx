@@ -1,7 +1,8 @@
 import { createAsync, type RouteDefinition } from "@solidjs/router";
-import { createSignal, onMount, onCleanup, For, Index, Show, type JSX } from "solid-js";
+import { createSignal, onMount, onCleanup, For, Index, Show } from "solid-js";
 import { getOptionalUser } from "~/api";
 import { authClient } from "~/lib/auth-client";
+import { createFluidTilt, createBubbleDragPop } from "~/lib/poppable";
 
 export const route = {
   preload() {
@@ -46,127 +47,6 @@ function makeBubble(): BubbleConfig {
     glintSize: rand(6, 16),
     borderAlpha: rand(0.18, 0.42),
     fillAlpha: rand(0.03, 0.1)
-  };
-}
-
-// Tracks pointer offset within an element and turns it into a jelly-like
-// scale/rotate/skew transform that snaps back to rest on pointer leave.
-// The ambient float/drift animations move bubbles via the standalone CSS
-// `translate` property, so this can own `transform` with no conflict.
-function createFluidTilt(maxTilt = 10, maxScale = 0.18) {
-  const [tilt, setTilt] = createSignal({ x: 0, y: 0 });
-  const [hovering, setHovering] = createSignal(false);
-
-  const onPointerMove = (e: PointerEvent) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width - 0.5;
-    const py = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({ x: px, y: py });
-  };
-  const onPointerEnter = () => setHovering(true);
-  const onPointerLeave = () => {
-    setHovering(false);
-    setTilt({ x: 0, y: 0 });
-  };
-
-  const transform = () => {
-    const t = tilt();
-    const wobble = Math.min(Math.hypot(t.x, t.y), 0.75);
-    const base = hovering() ? 1 + wobble * maxScale : 1;
-    return `scale(${base}) rotate(${t.x * maxTilt}deg) skew(${(-t.y * maxTilt) / 2}deg)`;
-  };
-
-  return { transform, onPointerMove, onPointerEnter, onPointerLeave };
-}
-
-// Drag-to-move + click-to-pop for a bubble that lives in normal document
-// flow (not the absolutely-positioned decorative ones). Once popped it stays
-// popped for good — no reform, no respawn. The freeze-on-pop capture happens
-// imperatively inside `pop()` itself, synchronously, before popping state
-// changes — same approach as BgBubble's parent-level freeze (see
-// `requestPop` in Home), just triggered locally here since popping is only
-// ever decided by this element's own pointer handlers, never externally.
-function createBubbleDragPop() {
-  const [drag, setDrag] = createSignal({ x: 0, y: 0 });
-  const [dragging, setDragging] = createSignal(false);
-  const [popping, setPopping] = createSignal(false);
-  const [frozenTranslate, setFrozenTranslate] = createSignal<string | null>(null);
-
-  let el: HTMLElement | undefined;
-  let start = { x: 0, y: 0, offX: 0, offY: 0 };
-  let moved = false;
-  let wasLastInteractionDrag = false;
-
-  const setRef = (node: HTMLElement) => {
-    el = node;
-  };
-
-  const pop = () => {
-    if (popping() || !el) return;
-    const current = getComputedStyle(el).translate;
-    setFrozenTranslate(current === "none" ? "0px 0px" : current);
-    setPopping(true);
-  };
-
-  const onPointerDown = (e: PointerEvent) => {
-    if (popping()) return;
-    // Starting on a real embedded link (e.g. the deadline bubble's): don't
-    // capture the pointer or start tracking a drag at all. Capturing here
-    // would redirect the eventual `click` event to this element instead of
-    // the anchor, silently swallowing the link's navigation — so instead,
-    // just let the browser handle the whole interaction natively.
-    if ((e.target as HTMLElement | null)?.closest?.("a")) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    const cur = drag();
-    start = { x: e.clientX, y: e.clientY, offX: cur.x, offY: cur.y };
-    moved = false;
-    setDragging(true);
-  };
-
-  // Returns true if the event was consumed as a drag move (caller should
-  // skip feeding it to the hover-tilt handler in that case). The threshold
-  // is generous (not a couple px) because a real mouse/trackpad click
-  // almost always drifts a few pixels between pointerdown and pointerup —
-  // too tight a threshold makes clicks silently fail to pop.
-  const onPointerMove = (e: PointerEvent) => {
-    if (!dragging()) return false;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
-    setDrag({ x: start.offX + dx, y: start.offY + dy });
-    return true;
-  };
-
-  const onPointerUp = () => {
-    const wasDragging = dragging();
-    setDragging(false);
-    wasLastInteractionDrag = wasDragging && moved;
-    if (wasDragging && !moved) pop();
-  };
-
-  // A native `click` still fires after a drag (pointerup lands back on the
-  // same captured element regardless of how far the pointer travelled), so
-  // for elements with a click action — like the login button — that action
-  // needs to be suppressed when the interaction was actually a drag. Wrap
-  // the real handler with this instead of using onClick directly.
-  const guardClick = (fn?: (e: MouseEvent) => void) => (e: MouseEvent) => {
-    if (wasLastInteractionDrag) {
-      e.preventDefault();
-      return;
-    }
-    fn?.(e);
-  };
-
-  return {
-    drag,
-    dragging,
-    popping,
-    frozenTranslate,
-    setRef,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    guardClick
   };
 }
 
@@ -364,11 +244,13 @@ export default function Home() {
   const infoTilt = createFluidTilt(4, 0.04);
   const authorTilt = createFluidTilt(4, 0.04);
   const deadlineTilt = createFluidTilt(4, 0.04);
+  const projectsTilt = createFluidTilt(4, 0.04);
   const ctaDragPop = createBubbleDragPop();
   const infoDragPop = createBubbleDragPop();
   const authorDragPop = createBubbleDragPop();
   const flagDragPop = createBubbleDragPop();
   const deadlineDragPop = createBubbleDragPop();
+  const projectsDragPop = createBubbleDragPop();
 
   // Without this, a failed sign-in (e.g. a misconfigured server) looks
   // exactly like a broken/unclickable button — the click fires, the request
@@ -407,6 +289,29 @@ export default function Home() {
         </For>
       </div>
 
+      <a
+        class="bubble bubble-projects"
+        classList={{ "bubble-pop": projectsDragPop.popping(), dragging: projectsDragPop.dragging() }}
+        href="/projects"
+        draggable={false}
+        ref={projectsDragPop.setRef}
+        style={{
+          translate: projectsDragPop.popping() ? (projectsDragPop.frozenTranslate() ?? undefined) : undefined,
+          transform: projectsDragPop.popping()
+            ? `translate(${projectsDragPop.drag().x}px, ${projectsDragPop.drag().y}px)`
+            : `translate(${projectsDragPop.drag().x}px, ${projectsDragPop.drag().y}px) ${projectsTilt.transform()}`
+        }}
+        onPointerDown={projectsDragPop.onPointerDown}
+        onPointerMove={e => !projectsDragPop.onPointerMove(e) && projectsTilt.onPointerMove(e)}
+        onPointerUp={projectsDragPop.onPointerUp}
+        onPointerCancel={projectsDragPop.onPointerUp}
+        onPointerEnter={projectsTilt.onPointerEnter}
+        onPointerLeave={() => !projectsDragPop.dragging() && projectsTilt.onPointerLeave()}
+        onClick={projectsDragPop.guardClick()}
+      >
+        View projects
+      </a>
+
       <img
         src="/flag-standalone-bw.png"
         alt="Hack Club flag"
@@ -434,6 +339,7 @@ export default function Home() {
             class="bubble bubble-cta"
             classList={{ "bubble-pop": ctaDragPop.popping(), dragging: ctaDragPop.dragging() }}
             href="/dash"
+            draggable={false}
             ref={ctaDragPop.setRef}
             style={{
               translate: ctaDragPop.popping() ? (ctaDragPop.frozenTranslate() ?? undefined) : undefined,

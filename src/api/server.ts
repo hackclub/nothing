@@ -2,7 +2,7 @@
 import { redirect } from "@solidjs/router";
 import { getWebRequest, appendResponseHeader } from "@solidjs/start/http";
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { auth } from "~/lib/auth";
 import { db } from "~/api/db";
 import { project, user } from "../../auth-schema";
@@ -202,8 +202,41 @@ export async function submitProject(formData: FormData) {
   throw redirect("/dash");
 }
 
+// Hackatime time keeps accruing on a project after it's been submitted (the
+// program window doesn't close until the deadline), so the stored `hours`
+// would otherwise go stale the moment a user logs more time — this
+// re-fetches live Hackatime totals and updates the DB before any page reads
+// project hours back out.
+async function recalcProjectHours(userId: string, slackId: string | null) {
+  if (!slackId) return;
+
+  const liveProjects = await fetchHackatimeProjects(slackId);
+  const totalSecondsByName = new Map(liveProjects.map(p => [p.name, p.totalSeconds]));
+
+  const userProjects = await db.select().from(project).where(eq(project.userId, userId));
+  for (const p of userProjects) {
+    const totalSeconds = p.hackatimeProjects.reduce((sum, name) => sum + (totalSecondsByName.get(name) ?? 0), 0);
+    const hours = totalSeconds / 3600;
+    if (hours !== p.hours) {
+      await db.update(project).set({ hours }).where(eq(project.id, p.id));
+    }
+  }
+}
+
+// Same as above but for every user with a submitted project — used by the
+// public leaderboard/projects pages, which show everyone's hours at once.
+async function recalcAllProjectHours() {
+  const owners = await db
+    .selectDistinct({ userId: project.userId, slackId: user.slackId })
+    .from(project)
+    .innerJoin(user, eq(project.userId, user.id));
+
+  await Promise.all(owners.map(o => recalcProjectHours(o.userId, o.slackId)));
+}
+
 export async function getMyProjects() {
-  const { user: sessionUser } = await requireEligibleIdentity();
+  const { user: sessionUser, slackId } = await requireEligibleIdentity();
+  await recalcProjectHours(sessionUser.id, slackId ?? null);
   return db.select().from(project).where(eq(project.userId, sessionUser.id));
 }
 
@@ -216,6 +249,8 @@ export type LeaderboardEntry = {
 };
 
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
+  await recalcAllProjectHours();
+
   const rows = await db
     .select({
       userId: project.userId,
@@ -230,6 +265,41 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
     .orderBy(sql`sum(${project.hours}) desc`);
 
   return rows;
+}
+
+export type PublicProject = {
+  id: string;
+  name: string;
+  description: string;
+  codeUrl: string;
+  playableUrl: string;
+  screenshotUrl: string;
+  hours: number;
+  createdAt: Date;
+  authorName: string;
+  authorSlackId: string | null;
+};
+
+// Public — no auth/eligibility gate — so anyone can browse what's been shipped.
+export async function getAllProjects(): Promise<PublicProject[]> {
+  await recalcAllProjectHours();
+
+  return db
+    .select({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      codeUrl: project.codeUrl,
+      playableUrl: project.playableUrl,
+      screenshotUrl: project.screenshotUrl,
+      hours: project.hours,
+      createdAt: project.createdAt,
+      authorName: user.name,
+      authorSlackId: user.slackId
+    })
+    .from(project)
+    .innerJoin(user, eq(project.userId, user.id))
+    .orderBy(desc(project.createdAt));
 }
 
 export async function logout() {

@@ -1,6 +1,7 @@
 import { createAsync, A, type RouteDefinition } from "@solidjs/router";
 import { For, Show } from "solid-js";
 import { getLeaderboard } from "~/api";
+import { Poppable } from "~/lib/poppable";
 
 export const route = {
   preload() {
@@ -13,18 +14,31 @@ export default function Leaderboard() {
 
   return (
     <main class="leaderboard-page">
-      <A href="/dash" class="back-link">
+      <Poppable as={A} class="back-link" href="/dash">
         ← Back to dashboard
-      </A>
-      <h1 class="leaderboard-title">Nothingboard</h1>
-      <Show when={(entries()?.length ?? 0) > 0} fallback={<p>No projects submitted yet.</p>}>
+      </Poppable>
+      <Poppable as="h1" class="leaderboard-title">
+        Nothingboard
+      </Poppable>
+      <Show when={(entries()?.length ?? 0) > 0} fallback={<Poppable as="p">No projects submitted yet.</Poppable>}>
         <ol class="leaderboard-list">
           <For each={entries()}>
             {(entry, i) => (
-              <li class="leaderboard-row" classList={{ "leaderboard-row-first": i() === 0 }}>
+              <Poppable
+                as="li"
+                class="leaderboard-row"
+                classList={{ "leaderboard-row-first": i() === 0 }}
+                tiltStrength={3}
+                tiltScale={0.03}
+              >
                 <span class="leaderboard-rank">{i() === 0 ? "♔" : `#${i() + 1}`}</span>
                 {entry.slackId ? (
-                  <img class="leaderboard-avatar" src={`https://cachet.hackclub.com/users/${entry.slackId}/r`} alt="" />
+                  <img
+                    class="leaderboard-avatar"
+                    src={`https://cachet.hackclub.com/users/${entry.slackId}/r`}
+                    alt=""
+                    draggable={false}
+                  />
                 ) : (
                   <span class="leaderboard-avatar leaderboard-avatar-placeholder" aria-hidden="true" />
                 )}
@@ -38,7 +52,7 @@ export default function Leaderboard() {
                 <span class="leaderboard-count">
                   {entry.projectCount} project{entry.projectCount === 1 ? "" : "s"}
                 </span>
-              </li>
+              </Poppable>
             )}
           </For>
         </ol>

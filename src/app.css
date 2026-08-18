@@ -129,6 +129,22 @@ p {
   pointer-events: none;
 }
 
+/* Base affordance for anything wrapped in <Poppable> (src/lib/poppable.tsx) —
+   drag/pop physics on plain page content outside the landing-page hero. */
+.poppable {
+  cursor: grab;
+  touch-action: none;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.poppable:active {
+  cursor: grabbing;
+}
+
+.poppable.dragging {
+  transition: none;
+}
+
 .bg-bubbles {
   position: absolute;
   inset: 0;
@@ -324,6 +340,44 @@ p {
   text-underline-offset: 2px;
 }
 
+/* Deliberately NOT in `.bubble-row` with the other content bubbles — that
+   row already clumps everything into one spot at the bottom of the hero.
+   This one lives in its own corner so the page reads as more than a single
+   stack. Top-left glint completes the four-corner spread started by
+   info/author/deadline above. */
+.bubble-projects {
+  position: absolute;
+  top: 1.75rem;
+  left: 1.75rem;
+  z-index: 1;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background:
+    radial-gradient(circle at 22% 22%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.25) 9%, transparent 24%),
+    radial-gradient(circle at 50% 50%, transparent 74%, rgba(255, 255, 255, 0.2) 88%, transparent 98%),
+    radial-gradient(circle at 78% 78%, rgba(0, 0, 0, 0.28) 0%, transparent 55%),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0.11) 100%);
+  box-shadow:
+    inset 3px 3px 10px rgba(255, 255, 255, 0.14),
+    inset -4px -4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 16px rgba(255, 255, 255, 0.09),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  animation-duration: 7s;
+  animation-delay: -5s;
+}
+
+@media (max-width: 640px) {
+  /* The corner spot collides with the centered title on narrow screens, so
+     it folds back into the normal flow up top instead of floating loose. */
+  .bubble-projects {
+    position: static;
+    margin: 0 0 1rem;
+  }
+}
+
 /* These animate the standalone `translate` property (not `transform`) so
    JS-driven hover-tilt / drag transforms can own `transform` with no fight. */
 @keyframes float {
@@ -516,11 +570,36 @@ p {
   opacity: 0.85;
 }
 
-.leaderboard-page {
+.leaderboard-page,
+.projects-page {
   max-width: 34rem;
   margin: 0 auto;
   padding: 3rem 1.5rem;
   text-align: left;
+}
+
+.projects-title {
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0 0 2rem;
+}
+
+.project-meta {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin: 0.35rem 0 0;
+}
+
+.project-links {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+
+.project-links a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .back-link {

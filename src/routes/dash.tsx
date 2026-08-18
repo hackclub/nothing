@@ -1,6 +1,7 @@
 import { createAsync, A, type RouteDefinition } from "@solidjs/router";
 import { Show, Switch, Match, For } from "solid-js";
 import { getDashData, getMyProjects } from "~/api";
+import { Poppable } from "~/lib/poppable";
 
 export const route = {
   preload() {
@@ -17,18 +18,23 @@ function MyProjects() {
 
   return (
     <section class="my-projects">
-      <h3 class="font-bold text-xl">Your projects</h3>
-      <Show when={(projects()?.length ?? 0) > 0} fallback={<p>You haven't submitted a project yet.</p>}>
+      <Poppable as="h3" class="font-bold text-xl">
+        Your projects
+      </Poppable>
+      <Show
+        when={(projects()?.length ?? 0) > 0}
+        fallback={<Poppable as="p">You haven't submitted a project yet.</Poppable>}
+      >
         <ul class="project-list">
           <For each={projects()}>
             {p => (
-              <li class="project-card">
-                <img src={p.screenshotUrl} alt={p.name} />
+              <Poppable as="li" class="project-card" tiltStrength={3} tiltScale={0.03}>
+                <img src={p.screenshotUrl} alt={p.name} draggable={false} />
                 <div>
                   <h4>{p.name}</h4>
                   <p>{p.description}</p>
                 </div>
-              </li>
+              </Poppable>
             )}
           </For>
         </ul>
@@ -47,35 +53,46 @@ export default function Dash() {
           <>
             <Switch>
               <Match when={d().verificationStatus === "pending"}>
-                <h2 class="font-bold text-3xl">Hold tight</h2>
-                <p>Your identity verification is still being reviewed. Check back later!</p>
+                <Poppable as="h2" class="font-bold text-3xl">
+                  Hold tight
+                </Poppable>
+                <Poppable as="p">Your identity verification is still being reviewed. Check back later!</Poppable>
               </Match>
 
               <Match when={d().verificationStatus === "ineligible"}>
-                <h2 class="font-bold text-3xl">You're not eligible</h2>
-                <p>Your identity verification wasn't approved, so you can't use Nothing.</p>
+                <Poppable as="h2" class="font-bold text-3xl">
+                  You're not eligible
+                </Poppable>
+                <Poppable as="p">Your identity verification wasn't approved, so you can't use Nothing.</Poppable>
               </Match>
 
               <Match when={d().verificationStatus === "verified" && !d().yswsEligible}>
-                <h2 class="font-bold text-3xl">Nothing is for teens</h2>
-                <p>You're verified, but Nothing is only open to Hack Clubbers under 18.</p>
+                <Poppable as="h2" class="font-bold text-3xl">
+                  Nothing is for teens
+                </Poppable>
+                <Poppable as="p">You're verified, but Nothing is only open to Hack Clubbers under 18.</Poppable>
               </Match>
 
               <Match when={d().verificationStatus === "verified" && d().yswsEligible}>
-                <h2 class="font-bold text-3xl">hi {d().user.name.split(" ")[0]}! it's great to see you {"<3"}</h2>
-                <p class="deadline-note">
+                <Poppable as="h2" class="font-bold text-3xl">
+                  hi {d().user.name.split(" ")[0]}! it's great to see you {"<3"}
+                </Poppable>
+                <Poppable as="p" class="deadline-note">
                   Submissions close{" "}
-                  <a href="https://internet-ti.me/@208" target="_blank" rel="noopener noreferrer">
+                  <a href="https://internet-ti.me/@208" target="_blank" rel="noopener noreferrer" draggable={false}>
                     Aug 19 @208
                   </a>
-                </p>
+                </Poppable>
 
-                <A href="/submit" class="bubble bubble-cta submit-link">
+                <Poppable as={A} class="bubble bubble-cta submit-link" popClass="bubble-pop" href="/submit">
                   Submit a project
-                </A>
-                <A href="/leaderboard" class="bubble bubble-cta submit-link">
+                </Poppable>
+                <Poppable as={A} class="bubble bubble-cta submit-link" popClass="bubble-pop" href="/leaderboard">
                   Nothingboard
-                </A>
+                </Poppable>
+                <Poppable as={A} class="bubble bubble-cta submit-link" popClass="bubble-pop" href="/projects">
+                  View projects
+                </Poppable>
 
                 <MyProjects />
               </Match>
