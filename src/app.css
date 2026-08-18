@@ -504,6 +504,7 @@ p {
 }
 
 .leaderboard-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.85rem;
@@ -530,8 +531,14 @@ p {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-.leaderboard-name {
+.leaderboard-namewrap {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.leaderboard-name {
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -548,4 +555,69 @@ p {
   opacity: 0.7;
   width: 5.5rem;
   text-align: right;
+}
+
+/* The Royal Nothing gets the deluxe treatment: a slow rotating glint behind
+   the row (same idea as the bubbles' glass shading, just conic instead of
+   radial), a glowing ring around the avatar, and a crown for a rank. */
+.leaderboard-row-first {
+  padding: 1rem 1.1rem;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 28px rgba(255, 255, 255, 0.2),
+    inset 0 0 20px rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.leaderboard-row-first::before {
+  content: "";
+  position: absolute;
+  inset: -100%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.16) 12deg,
+    transparent 30deg,
+    transparent 360deg
+  );
+  animation: royal-shimmer 5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes royal-shimmer {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.leaderboard-row-first .leaderboard-rank {
+  font-size: 1.4rem;
+  opacity: 1;
+}
+
+.leaderboard-row-first .leaderboard-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.45);
+}
+
+.leaderboard-row-first .leaderboard-name {
+  font-size: 1.1rem;
+}
+
+.leaderboard-royal-badge {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-row-first::before {
+    animation: none;
+  }
 }

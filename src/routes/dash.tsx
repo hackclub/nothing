@@ -1,6 +1,6 @@
 import { createAsync, A, type RouteDefinition } from "@solidjs/router";
 import { Show, Switch, Match, For } from "solid-js";
-import { getDashData, getMyProjects, logout } from "~/api";
+import { getDashData, getMyProjects } from "~/api";
 
 export const route = {
   preload() {
@@ -68,16 +68,10 @@ export default function Dash() {
                   Submit a project
                 </A>
                 <A href="/leaderboard" class="bubble bubble-cta submit-link">
-                  Leaderboard
+                  Nothingboard
                 </A>
 
                 <MyProjects />
-
-                <form action={logout} method="post">
-                  <button name="logout" type="submit">
-                    Logout
-                  </button>
-                </form>
               </Match>
             </Switch>
           </>
