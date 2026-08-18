@@ -615,6 +615,55 @@ p {
   text-decoration: underline;
 }
 
+/* Global — rendered once in the router root (src/app.tsx) so it shows up on
+   every page, not just /dash, whenever a session exists. `position: fixed`
+   (not absolute) so it stays put regardless of which route's layout it's
+   sitting on top of and survives scrolling. */
+.logout-form {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 50;
+}
+
+.logout-bubble {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.25) 9%, transparent 24%),
+    radial-gradient(circle at 50% 50%, transparent 74%, rgba(255, 255, 255, 0.2) 88%, transparent 98%),
+    radial-gradient(circle at 72% 74%, rgba(0, 0, 0, 0.28) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0.11) 100%);
+  box-shadow:
+    inset 3px 3px 10px rgba(255, 255, 255, 0.14),
+    inset -4px -4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 16px rgba(255, 255, 255, 0.09),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.logout-bubble svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke: #fff;
+}
+
+@media (max-width: 640px) {
+  .logout-form {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .logout-bubble {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
 .leaderboard-title {
   font-size: 2rem;
   font-weight: 900;
