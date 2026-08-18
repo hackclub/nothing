@@ -1,4 +1,4 @@
-import { createAsync, type RouteDefinition } from "@solidjs/router";
+import { createAsync, A, type RouteDefinition } from "@solidjs/router";
 import { For, Show } from "solid-js";
 import { getLeaderboard } from "~/api";
 
@@ -13,6 +13,9 @@ export default function Leaderboard() {
 
   return (
     <main class="leaderboard-page">
+      <A href="/dash" class="back-link">
+        ← Back to dashboard
+      </A>
       <h1 class="leaderboard-title">Nothingboard</h1>
       <Show when={(entries()?.length ?? 0) > 0} fallback={<p>No projects submitted yet.</p>}>
         <ol class="leaderboard-list">
