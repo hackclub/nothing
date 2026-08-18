@@ -1,0 +1,13 @@
+node_modules
+.output
+.vinxi
+dist
+.git
+.gitignore
+.env
+.env.*.local
+uploads
+*.log
+.DS_Store
+.idea
+.vscode
