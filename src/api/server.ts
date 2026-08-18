@@ -70,34 +70,53 @@ export async function getDashData() {
 
 export type HackatimeProject = { name: string; text: string; totalSeconds: number };
 
-// Only counts time logged during the program's active window.
-const HACKATIME_START_DATE = "2026-08-18T00:00:00Z";
-const HACKATIME_END_DATE = "2026-08-19T23:59:59Z";
+// Only counts time logged during the program's active window. This admin
+// endpoint takes plain YYYY-MM-DD (not the full ISO date-time the old
+// non-admin /stats endpoint wanted).
+const HACKATIME_START_DATE = "2026-08-18";
+const HACKATIME_END_DATE = "2026-08-19";
+
+function formatHours(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+// The admin projects endpoint only takes Hackatime's own internal numeric
+// user id — not the Slack ID we store — so it has to be resolved first.
+async function resolveHackatimeUserId(slackId: string): Promise<number | null> {
+  const res = await fetch(`https://hackatime.hackclub.com/api/v1/users/lookup_slack_uid/${slackId}`, {
+    headers: { Authorization: `Bearer ${process.env.HACKATIME_API_KEY}` }
+  });
+  if (!res.ok) return null;
+  const body: { user_id?: number } = await res.json();
+  return body.user_id ?? null;
+}
 
 async function fetchHackatimeProjects(slackId: string): Promise<HackatimeProject[]> {
-  // `features` defaults to "languages" only — without explicitly asking for
-  // "projects" here, `data.projects` is just absent from the response.
+  const userId = await resolveHackatimeUserId(slackId);
+  if (userId === null) return [];
+
   const params = new URLSearchParams({
-    features: "projects",
+    user_id: String(userId),
     start_date: HACKATIME_START_DATE,
     end_date: HACKATIME_END_DATE
   });
-  const res = await fetch(`https://hackatime.hackclub.com/api/v1/users/${slackId}/stats?${params}`, {
+  const res = await fetch(`https://hackatime.hackclub.com/api/admin/v1/user/projects?${params}`, {
     headers: { Authorization: `Bearer ${process.env.HACKATIME_API_KEY}` }
   });
   if (!res.ok) return [];
 
   const body: {
-    data?: { projects?: { name?: string; text?: string; total_seconds?: number }[] };
+    projects?: { name: string | null; total_duration?: number }[];
   } = await res.json();
 
-  return (body.data?.projects ?? [])
-    .filter((p): p is { name: string; text?: string; total_seconds?: number } => Boolean(p.name))
-    .map(p => ({
-      name: p.name,
-      text: p.text ?? "0m",
-      totalSeconds: p.total_seconds ?? 0
-    }));
+  return (body.projects ?? [])
+    .filter((p): p is { name: string; total_duration?: number } => Boolean(p.name))
+    .map(p => {
+      const totalSeconds = p.total_duration ?? 0;
+      return { name: p.name, text: formatHours(totalSeconds), totalSeconds };
+    });
 }
 
 export async function getHackatimeProjects(): Promise<HackatimeProject[]> {
