@@ -37,6 +37,17 @@ p {
   line-height: 1.35;
 }
 
+.deadline-note {
+  max-width: none;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.deadline-note a {
+  color: inherit;
+}
+
 .hero {
   position: relative;
   min-height: 100dvh;
@@ -286,6 +297,31 @@ p {
     0 8px 20px rgba(0, 0, 0, 0.3);
   animation-duration: 5s;
   animation-delay: -3s;
+}
+
+.bubble-deadline {
+  padding: 1rem 1.5rem;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  background:
+    radial-gradient(circle at 78% 78%, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.2) 9%, transparent 24%),
+    radial-gradient(circle at 50% 50%, transparent 74%, rgba(255, 255, 255, 0.19) 88%, transparent 98%),
+    radial-gradient(circle at 22% 22%, rgba(0, 0, 0, 0.27) 0%, transparent 55%),
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0.11) 100%);
+  box-shadow:
+    inset -3px -4px 10px rgba(255, 255, 255, 0.12),
+    inset 4px 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 16px rgba(255, 255, 255, 0.09),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  animation-duration: 6.5s;
+  animation-delay: -2s;
+}
+
+.bubble-deadline a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* These animate the standalone `translate` property (not `transform`) so

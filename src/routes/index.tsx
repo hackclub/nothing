@@ -110,6 +110,12 @@ function createBubbleDragPop() {
 
   const onPointerDown = (e: PointerEvent) => {
     if (popping()) return;
+    // Starting on a real embedded link (e.g. the deadline bubble's): don't
+    // capture the pointer or start tracking a drag at all. Capturing here
+    // would redirect the eventual `click` event to this element instead of
+    // the anchor, silently swallowing the link's navigation — so instead,
+    // just let the browser handle the whole interaction natively.
+    if ((e.target as HTMLElement | null)?.closest?.("a")) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const cur = drag();
     start = { x: e.clientX, y: e.clientY, offX: cur.x, offY: cur.y };
@@ -357,10 +363,12 @@ export default function Home() {
   const ctaTilt = createFluidTilt(6, 0.08);
   const infoTilt = createFluidTilt(4, 0.04);
   const authorTilt = createFluidTilt(4, 0.04);
+  const deadlineTilt = createFluidTilt(4, 0.04);
   const ctaDragPop = createBubbleDragPop();
   const infoDragPop = createBubbleDragPop();
   const authorDragPop = createBubbleDragPop();
   const flagDragPop = createBubbleDragPop();
+  const deadlineDragPop = createBubbleDragPop();
 
   // Without this, a failed sign-in (e.g. a misconfigured server) looks
   // exactly like a broken/unclickable button — the click fires, the request
@@ -509,6 +517,29 @@ export default function Home() {
           onPointerLeave={() => !authorDragPop.dragging() && authorTilt.onPointerLeave()}
         >
           an amber ysws {"<3"}
+        </p>
+
+        <p
+          class="bubble bubble-deadline"
+          classList={{ "bubble-pop": deadlineDragPop.popping(), dragging: deadlineDragPop.dragging() }}
+          ref={deadlineDragPop.setRef}
+          style={{
+            translate: deadlineDragPop.popping() ? (deadlineDragPop.frozenTranslate() ?? undefined) : undefined,
+            transform: deadlineDragPop.popping()
+              ? `translate(${deadlineDragPop.drag().x}px, ${deadlineDragPop.drag().y}px)`
+              : `translate(${deadlineDragPop.drag().x}px, ${deadlineDragPop.drag().y}px) ${deadlineTilt.transform()}`
+          }}
+          onPointerDown={deadlineDragPop.onPointerDown}
+          onPointerMove={e => !deadlineDragPop.onPointerMove(e) && deadlineTilt.onPointerMove(e)}
+          onPointerUp={deadlineDragPop.onPointerUp}
+          onPointerCancel={deadlineDragPop.onPointerUp}
+          onPointerEnter={deadlineTilt.onPointerEnter}
+          onPointerLeave={() => !deadlineDragPop.dragging() && deadlineTilt.onPointerLeave()}
+        >
+          Submissions close{" "}
+          <a href="https://internet-ti.me/@208" target="_blank" rel="noopener noreferrer" draggable={false}>
+            Aug 19 @208
+          </a>
         </p>
       </div>
     </section>

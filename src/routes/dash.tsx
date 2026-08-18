@@ -63,6 +63,12 @@ export default function Dash() {
 
               <Match when={d().verificationStatus === "verified" && d().yswsEligible}>
                 <h2 class="font-bold text-3xl">hi {d().user.name.split(" ")[0]}! it's great to see you {"<3"}</h2>
+                <p class="deadline-note">
+                  Submissions close{" "}
+                  <a href="https://internet-ti.me/@208" target="_blank" rel="noopener noreferrer">
+                    Aug 19 @208
+                  </a>
+                </p>
 
                 <A href="/submit" class="bubble bubble-cta submit-link">
                   Submit a project
