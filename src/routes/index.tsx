@@ -93,6 +93,7 @@ function BgBubble(props: {
 
   let start = { x: 0, y: 0, offX: 0, offY: 0 };
   let moved = false;
+  let pointerType: string = "mouse";
 
   const onPointerDown = (e: PointerEvent) => {
     if (props.popping()) return;
@@ -100,9 +101,13 @@ function BgBubble(props: {
     const cur = drag();
     start = { x: e.clientX, y: e.clientY, offX: cur.x, offY: cur.y };
     moved = false;
+    pointerType = e.pointerType;
     setDragging(true);
   };
 
+  // Touch gets a bigger drag-vs-tap allowance than mouse — a finger drifts
+  // more than a cursor during what's meant to be a tap (see the matching
+  // comment in createBubbleDragPop, src/lib/poppable.tsx).
   const onPointerMove = (e: PointerEvent) => {
     if (props.popping()) return;
     if (!dragging()) {
@@ -111,7 +116,8 @@ function BgBubble(props: {
     }
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
+    const threshold = pointerType === "touch" ? 24 : 10;
+    if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) moved = true;
     setDrag({ x: start.offX + dx, y: start.offY + dy });
   };
 
@@ -442,9 +448,9 @@ export default function Home() {
           onPointerEnter={deadlineTilt.onPointerEnter}
           onPointerLeave={() => !deadlineDragPop.dragging() && deadlineTilt.onPointerLeave()}
         >
-          Submissions close{" "}
+          Submissions close at 11:59pm ET on August 19th{" "}
           <a href="https://internet-ti.me/@208" target="_blank" rel="noopener noreferrer" draggable={false}>
-            Aug 19 @208
+            (@208 internet time)
           </a>
         </p>
       </div>

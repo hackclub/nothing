@@ -78,9 +78,9 @@ export default function Dash() {
                   hi {d().user.name.split(" ")[0]}! it's great to see you {"<3"}
                 </Poppable>
                 <Poppable as="p" class="deadline-note">
-                  Submissions close{" "}
+                  Submissions close at 11:59pm ET on August 19th{" "}
                   <a href="https://internet-ti.me/@208" target="_blank" rel="noopener noreferrer" draggable={false}>
-                    Aug 19 @208
+                    (@208 internet time)
                   </a>
                 </Poppable>
 

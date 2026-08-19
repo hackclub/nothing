@@ -49,6 +49,7 @@ export function createBubbleDragPop() {
   let start = { x: 0, y: 0, offX: 0, offY: 0 };
   let moved = false;
   let wasLastInteractionDrag = false;
+  let pointerType: string = "mouse";
 
   const setRef = (node: HTMLElement) => {
     el = node;
@@ -77,6 +78,7 @@ export function createBubbleDragPop() {
     const cur = drag();
     start = { x: e.clientX, y: e.clientY, offX: cur.x, offY: cur.y };
     moved = false;
+    pointerType = e.pointerType;
     setDragging(true);
   };
 
@@ -84,12 +86,17 @@ export function createBubbleDragPop() {
   // skip feeding it to the hover-tilt handler in that case). The threshold
   // is generous (not a couple px) because a real mouse/trackpad click
   // almost always drifts a few pixels between pointerdown and pointerup —
-  // too tight a threshold makes clicks silently fail to pop.
+  // too tight a threshold makes clicks silently fail to pop. Touch needs an
+  // even bigger allowance: a finger drifts far more than a mouse cursor
+  // during what's meant to be a tap, and misclassifying that as a drag here
+  // makes `guardClick` swallow the click below — which is exactly what made
+  // the login button "not work" on mobile while being fine on desktop.
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging()) return false;
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
+    const threshold = pointerType === "touch" ? 24 : 10;
+    if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) moved = true;
     setDrag({ x: start.offX + dx, y: start.offY + dy });
     return true;
   };
