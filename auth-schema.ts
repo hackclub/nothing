@@ -110,6 +110,9 @@ export const project = pgTable(
     // program's active window), in hours, captured server-side at
     // submission time — never trust a client-supplied number here.
     hours: real("hours").notNull(),
+    // Opt-in, set at submission time — when true, the leaderboard/projects
+    // pages show this submitter anonymously instead of their real name.
+    hideUsername: boolean("hide_username").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

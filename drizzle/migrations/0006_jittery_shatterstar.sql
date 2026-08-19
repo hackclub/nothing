@@ -1,0 +1,1 @@
+ALTER TABLE "project" ADD COLUMN "hide_username" boolean DEFAULT false NOT NULL;

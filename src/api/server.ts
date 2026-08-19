@@ -158,6 +158,7 @@ export async function submitProject(formData: FormData) {
   const codeUrl = String(formData.get("codeUrl") ?? "").trim();
   const playableUrl = String(formData.get("playableUrl") ?? "").trim();
   const hackatimeProjects = formData.getAll("hackatimeProjects").map(String).filter(Boolean);
+  const hideUsername = formData.get("hideUsername") === "on";
   const screenshot = formData.get("screenshot");
 
   if (!name || !description || !codeUrl || !playableUrl) {
@@ -196,7 +197,8 @@ export async function submitProject(formData: FormData) {
     playableUrl,
     screenshotUrl,
     hackatimeProjects,
-    hours
+    hours,
+    hideUsername
   });
 
   throw redirect("/dash");
@@ -257,14 +259,20 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
       name: user.name,
       slackId: user.slackId,
       hours: sql<number>`sum(${project.hours})`.mapWith(Number),
-      projectCount: sql<number>`count(*)`.mapWith(Number)
+      projectCount: sql<number>`count(*)`.mapWith(Number),
+      // If ANY of a user's projects opted to hide the name, anonymize their
+      // whole row — the leaderboard sums hours across all of a user's
+      // projects, so showing their real name next to hours contributed in
+      // part by a project they asked to keep anonymous would defeat the
+      // point.
+      anyHidden: sql<boolean>`bool_or(${project.hideUsername})`.mapWith(Boolean)
     })
     .from(project)
     .innerJoin(user, eq(project.userId, user.id))
     .groupBy(project.userId, user.name, user.slackId)
     .orderBy(sql`sum(${project.hours}) desc`);
 
-  return rows;
+  return rows.map(({ anyHidden, ...row }) => (anyHidden ? { ...row, name: "Anonymous Nothing" } : row));
 }
 
 export type PublicProject = {
@@ -284,7 +292,7 @@ export type PublicProject = {
 export async function getAllProjects(): Promise<PublicProject[]> {
   await recalcAllProjectHours();
 
-  return db
+  const rows = await db
     .select({
       id: project.id,
       name: project.name,
@@ -295,11 +303,14 @@ export async function getAllProjects(): Promise<PublicProject[]> {
       hours: project.hours,
       createdAt: project.createdAt,
       authorName: user.name,
-      authorSlackId: user.slackId
+      authorSlackId: user.slackId,
+      hideUsername: project.hideUsername
     })
     .from(project)
     .innerJoin(user, eq(project.userId, user.id))
     .orderBy(desc(project.createdAt));
+
+  return rows.map(({ hideUsername, ...row }) => (hideUsername ? { ...row, authorName: "Anonymous Nothing" } : row));
 }
 
 export async function logout() {

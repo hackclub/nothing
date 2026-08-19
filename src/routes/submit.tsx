@@ -71,6 +71,11 @@ export default function Submit() {
           </Show>
         </label>
 
+        <label class="field field-checkbox">
+          <input type="checkbox" name="hideUsername" value="on" />
+          <span>Hide my name on the Nothingboard/projects page</span>
+        </label>
+
         <Show when={submission.error}>
           <p class="form-error">{submission.error instanceof Error ? submission.error.message : "Something went wrong"}</p>
         </Show>
