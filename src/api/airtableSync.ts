@@ -58,6 +58,12 @@ function hackatimeJustificationOf(hackatimeProjects: string[]): string {
   return justification.slice(0, MAX_JUSTIFICATION_LENGTH);
 }
 
+// Airtable returns HTTP 404 with error "NOT_FOUND" when the record id no
+// longer exists — e.g. someone deleted it in the Airtable UI.
+function isRecordNotFoundError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "statusCode" in error && error.statusCode === 404;
+}
+
 // Cheap fingerprint of exactly the project fields that feed Airtable — NOT
 // `project.updatedAt`, since that also bumps on unrelated writes (e.g. the
 // live Hackatime hours recalculation) that shouldn't trigger a re-sync.
@@ -146,8 +152,17 @@ async function syncOneProject(row: ProjectRow) {
 
   let recordId = row.airtableRecordId;
   if (recordId) {
-    await airtable.update(YswsProjectSubmissiontable, { id: recordId, ...fields });
-  } else {
+    try {
+      await airtable.update(YswsProjectSubmissiontable, { id: recordId, ...fields });
+    } catch (error) {
+      // The Airtable record was deleted out from under us — drop the stale
+      // link and fall through to recreate it below, instead of failing on
+      // this project forever.
+      if (!isRecordNotFoundError(error)) throw error;
+      recordId = null;
+    }
+  }
+  if (!recordId) {
     recordId = (await airtable.insert(YswsProjectSubmissiontable, fields)).id;
   }
 
