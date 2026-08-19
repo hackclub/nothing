@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.7.0",
+    "airtable-ts-codegen": "^2.2.0",
     "drizzle-kit": "^0.31.10"
   },
   "dependencies": {

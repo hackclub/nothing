@@ -113,6 +113,16 @@ export const project = pgTable(
     // Opt-in, set at submission time — when true, the leaderboard/projects
     // pages show this submitter anonymously instead of their real name.
     hideUsername: boolean("hide_username").default(false).notNull(),
+    // Set once the minutely Airtable sync task has created the corresponding
+    // "YSWS Project Submission" record — its presence is what tells that task
+    // to update the existing record instead of creating a duplicate.
+    airtableRecordId: text("airtable_record_id"),
+    // A snapshot of the fields that feed Airtable, as of the last successful
+    // sync — NOT `updatedAt`, since that also bumps on unrelated writes (e.g.
+    // the live Hackatime hours recalculation) that don't need a re-sync. The
+    // sync task only re-fetches HCA identity/address and pushes to Airtable
+    // when this no longer matches the project's current field values.
+    airtableSyncedFingerprint: text("airtable_synced_fingerprint"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
