@@ -31,6 +31,7 @@ type HcaMeResponse = {
       state?: string | null;
       postal_code?: string | null;
       country?: string | null;
+      primary?: boolean;
     }[];
   };
 };
@@ -51,8 +52,9 @@ export async function fetchHcaProfile(userId: string): Promise<HcaProfile | null
   const { identity }: HcaMeResponse = await res.json();
   if (!identity) return null;
 
-  // "If a user has multiple addresses use the first one."
-  const address = identity.addresses?.[0];
+  // Use the user's default address — the one HCA marks `primary` — falling
+  // back to the first if none is marked (e.g. only one address on file).
+  const address = identity.addresses?.find(a => a.primary) ?? identity.addresses?.[0];
 
   return {
     firstName: identity.first_name ?? null,
