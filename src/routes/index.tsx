@@ -61,7 +61,7 @@ function PoppableLetter(props: { char: string }) {
   return (
     <span
       class="title-letter"
-      classList={{ "pop-anim": dragPop.popping(), dragging: dragPop.dragging() }}
+      classList={{ "pop-anim": dragPop.popping(), "pointer-blocked": dragPop.pointerBlocked(), dragging: dragPop.dragging() }}
       ref={dragPop.setRef}
       style={{
         translate: dragPop.popping() ? (dragPop.frozenTranslate() ?? undefined) : undefined,
@@ -97,7 +97,13 @@ function BgBubble(props: {
 
   const onPointerDown = (e: PointerEvent) => {
     if (props.popping()) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Touch already gets implicit capture from the browser — see the
+    // matching comment in createBubbleDragPop (src/lib/poppable.tsx) for
+    // why calling setPointerCapture explicitly for touch is both redundant
+    // and, on top of that, suppresses the browser's subsequent `click`.
+    if (e.pointerType !== "touch") {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
     const cur = drag();
     start = { x: e.clientX, y: e.clientY, offX: cur.x, offY: cur.y };
     moved = false;
@@ -297,7 +303,7 @@ export default function Home() {
 
       <a
         class="bubble bubble-projects"
-        classList={{ "bubble-pop": projectsDragPop.popping(), dragging: projectsDragPop.dragging() }}
+        classList={{ "bubble-pop": projectsDragPop.popping(), "pointer-blocked": projectsDragPop.pointerBlocked(), dragging: projectsDragPop.dragging() }}
         href="/projects"
         draggable={false}
         ref={projectsDragPop.setRef}
@@ -322,7 +328,7 @@ export default function Home() {
         src="/flag-standalone-bw.png"
         alt="Hack Club flag"
         class="hero-flag"
-        classList={{ "pop-anim": flagDragPop.popping(), dragging: flagDragPop.dragging() }}
+        classList={{ "pop-anim": flagDragPop.popping(), "pointer-blocked": flagDragPop.pointerBlocked(), dragging: flagDragPop.dragging() }}
         draggable={false}
         ref={flagDragPop.setRef}
         style={{
@@ -343,7 +349,7 @@ export default function Home() {
         {user() ? (
           <a
             class="bubble bubble-cta"
-            classList={{ "bubble-pop": ctaDragPop.popping(), dragging: ctaDragPop.dragging() }}
+            classList={{ "bubble-pop": ctaDragPop.popping(), "pointer-blocked": ctaDragPop.pointerBlocked(), dragging: ctaDragPop.dragging() }}
             href="/dash"
             draggable={false}
             ref={ctaDragPop.setRef}
@@ -366,7 +372,7 @@ export default function Home() {
         ) : (
           <button
             class="bubble bubble-cta"
-            classList={{ "bubble-pop": ctaDragPop.popping(), dragging: ctaDragPop.dragging() }}
+            classList={{ "bubble-pop": ctaDragPop.popping(), "pointer-blocked": ctaDragPop.pointerBlocked(), dragging: ctaDragPop.dragging() }}
             type="button"
             ref={ctaDragPop.setRef}
             style={{
@@ -393,7 +399,7 @@ export default function Home() {
 
         <p
           class="bubble bubble-info"
-          classList={{ "bubble-pop": infoDragPop.popping(), dragging: infoDragPop.dragging() }}
+          classList={{ "bubble-pop": infoDragPop.popping(), "pointer-blocked": infoDragPop.pointerBlocked(), dragging: infoDragPop.dragging() }}
           ref={infoDragPop.setRef}
           style={{
             translate: infoDragPop.popping() ? (infoDragPop.frozenTranslate() ?? undefined) : undefined,
@@ -413,7 +419,7 @@ export default function Home() {
 
         <p
           class="bubble bubble-author"
-          classList={{ "bubble-pop": authorDragPop.popping(), dragging: authorDragPop.dragging() }}
+          classList={{ "bubble-pop": authorDragPop.popping(), "pointer-blocked": authorDragPop.pointerBlocked(), dragging: authorDragPop.dragging() }}
           ref={authorDragPop.setRef}
           style={{
             translate: authorDragPop.popping() ? (authorDragPop.frozenTranslate() ?? undefined) : undefined,
@@ -433,7 +439,7 @@ export default function Home() {
 
         <p
           class="bubble bubble-deadline"
-          classList={{ "bubble-pop": deadlineDragPop.popping(), dragging: deadlineDragPop.dragging() }}
+          classList={{ "bubble-pop": deadlineDragPop.popping(), "pointer-blocked": deadlineDragPop.pointerBlocked(), dragging: deadlineDragPop.dragging() }}
           ref={deadlineDragPop.setRef}
           style={{
             translate: deadlineDragPop.popping() ? (deadlineDragPop.frozenTranslate() ?? undefined) : undefined,

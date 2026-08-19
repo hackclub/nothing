@@ -43,6 +43,7 @@ export function createBubbleDragPop() {
   const [drag, setDrag] = createSignal({ x: 0, y: 0 });
   const [dragging, setDragging] = createSignal(false);
   const [popping, setPopping] = createSignal(false);
+  const [pointerBlocked, setPointerBlocked] = createSignal(false);
   const [frozenTranslate, setFrozenTranslate] = createSignal<string | null>(null);
 
   let el: HTMLElement | undefined;
@@ -60,6 +61,16 @@ export function createBubbleDragPop() {
     const current = getComputedStyle(el).translate;
     setFrozenTranslate(current === "none" ? "0px 0px" : current);
     setPopping(true);
+    // Deliberately NOT bundled into the same synchronous update as
+    // `popping`: the browser dispatches its synthetic `click` as a separate
+    // event right after this `pointerup` handler returns, and if this
+    // element is already pointer-events:none by then, that click hit-tests
+    // to whatever's underneath instead — silently eating both the pop-click
+    // combo action (e.g. login) and plain click-to-navigate links. Desktop
+    // mice dodge this by accident (pointer capture retargets `click` to the
+    // captured element regardless of pointer-events), but touch has no such
+    // save. Deferring one frame lets that click land first.
+    requestAnimationFrame(() => setPointerBlocked(true));
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -74,7 +85,15 @@ export function createBubbleDragPop() {
     const currentTarget = e.currentTarget as HTMLElement;
     const closestLink = (e.target as HTMLElement | null)?.closest?.("a");
     if (closestLink && closestLink !== currentTarget) return;
-    currentTarget.setPointerCapture(e.pointerId);
+    // Touch pointers already get *implicit* capture from the browser — the
+    // element that received pointerdown keeps getting pointermove/up for
+    // that touch no matter where the finger goes, with no explicit call
+    // needed. Mouse pointers have no implicit capture, so they still need
+    // the explicit call to keep tracking a drag once the cursor leaves the
+    // element.
+    if (e.pointerType !== "touch") {
+      currentTarget.setPointerCapture(e.pointerId);
+    }
     const cur = drag();
     start = { x: e.clientX, y: e.clientY, offX: cur.x, offY: cur.y };
     moved = false;
@@ -125,6 +144,7 @@ export function createBubbleDragPop() {
     drag,
     dragging,
     popping,
+    pointerBlocked,
     frozenTranslate,
     setRef,
     onPointerDown,
@@ -181,7 +201,12 @@ export function Poppable(props: {
       // own drag logic only ever sees a tiny fraction of the real movement.
       draggable={false}
       class={className ? `poppable ${className}` : "poppable"}
-      classList={{ ...extraClassList, [popClass]: dragPop.popping(), dragging: dragPop.dragging() }}
+      classList={{
+        ...extraClassList,
+        [popClass]: dragPop.popping(),
+        "pointer-blocked": dragPop.pointerBlocked(),
+        dragging: dragPop.dragging()
+      }}
       ref={dragPop.setRef}
       style={{
         translate: dragPop.popping() ? (dragPop.frozenTranslate() ?? undefined) : undefined,

@@ -126,6 +126,14 @@ p {
    poppable (the flag, the title) — same keyframes, no `.bubble` needed. */
 .pop-anim {
   animation: pop 0.35s ease-out forwards;
+}
+
+/* Applied one frame after `.pop-anim`/`.bubble-pop` (see `pop()` in
+   src/lib/poppable.tsx), not bundled into them — the browser's synthetic
+   `click` after a tap-to-pop is a separate event dispatch, and if this
+   element is already pointer-events:none by the time it fires, the click
+   silently lands on whatever's underneath instead. */
+.pointer-blocked {
   pointer-events: none;
 }
 
@@ -236,7 +244,6 @@ p {
    `animation-duration`/`animation-delay`, regardless of source order. */
 .bubble.bubble-pop {
   animation: pop 0.35s ease-out forwards;
-  pointer-events: none;
 }
 
 .bubble-cta {
