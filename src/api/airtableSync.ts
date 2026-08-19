@@ -64,6 +64,18 @@ function isRecordNotFoundError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "statusCode" in error && error.statusCode === 404;
 }
 
+// A plain read, so an unchanged project only costs this (not a full
+// HCA-identity-fetch-and-write) on the runs where nothing else changed.
+async function airtableRecordExists(recordId: string): Promise<boolean> {
+  try {
+    await airtable.get(YswsProjectSubmissiontable, recordId);
+    return true;
+  } catch (error) {
+    if (isRecordNotFoundError(error)) return false;
+    throw error;
+  }
+}
+
 // Cheap fingerprint of exactly the project fields that feed Airtable — NOT
 // `project.updatedAt`, since that also bumps on unrelated writes (e.g. the
 // live Hackatime hours recalculation) that shouldn't trigger a re-sync.
@@ -121,8 +133,17 @@ type ProjectRow = {
 };
 
 async function syncOneProject(row: ProjectRow) {
+  // Check this *before* the fingerprint short-circuit below — otherwise an
+  // unchanged project whose Airtable record was deleted out from under us
+  // (e.g. by hand in the Airtable UI) would never get re-created, since the
+  // fingerprint match would skip it before we ever touched Airtable again.
+  let recordId = row.airtableRecordId;
+  if (recordId && !(await airtableRecordExists(recordId))) {
+    recordId = null;
+  }
+
   const fingerprint = fingerprintOf(row);
-  if (fingerprint === row.airtableSyncedFingerprint) return;
+  if (recordId && fingerprint === row.airtableSyncedFingerprint) return;
 
   const profile = await fetchHcaProfile(row.userId);
   if (!profile) return;
@@ -150,14 +171,12 @@ async function syncOneProject(row: ProjectRow) {
     justificationSubmitterHackatimeId: hackatimeUserId !== null ? String(hackatimeUserId) : null
   };
 
-  let recordId = row.airtableRecordId;
   if (recordId) {
     try {
       await airtable.update(YswsProjectSubmissiontable, { id: recordId, ...fields });
     } catch (error) {
-      // The Airtable record was deleted out from under us — drop the stale
-      // link and fall through to recreate it below, instead of failing on
-      // this project forever.
+      // Covers the race where the record was deleted between the existence
+      // check above and this write.
       if (!isRecordNotFoundError(error)) throw error;
       recordId = null;
     }
