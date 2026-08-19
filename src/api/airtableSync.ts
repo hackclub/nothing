@@ -45,8 +45,17 @@ function formatUsDate(isoDate: string): string {
 // last update"), so every selected Hackatime project name gets that same range.
 const HACKATIME_DATE_RANGE = `${formatUsDate(HACKATIME_START_DATE)}-${formatUsDate(HACKATIME_END_DATE)}`;
 
+// Airtable's long text fields cap out at 100,000 characters.
+const MAX_JUSTIFICATION_LENGTH = 100_000;
+
 function hackatimeJustificationOf(hackatimeProjects: string[]): string {
-  return hackatimeProjects.map(name => `${name} ${HACKATIME_DATE_RANGE}`).join(", ");
+  // The same Hackatime project can end up selected more than once (e.g. the
+  // submission form lists one <option> per Hackatime-reported project entry,
+  // and duplicate-named entries aren't merged there) — list each distinct
+  // name once rather than repeating "name range" per raw selection.
+  const distinctNames = [...new Set(hackatimeProjects)];
+  const justification = distinctNames.map(name => `${name} ${HACKATIME_DATE_RANGE}`).join(", ");
+  return justification.slice(0, MAX_JUSTIFICATION_LENGTH);
 }
 
 // Cheap fingerprint of exactly the project fields that feed Airtable — NOT
@@ -80,45 +89,70 @@ export async function syncProjectsToAirtable() {
     .innerJoin(user, eq(project.userId, user.id));
 
   for (const row of rows) {
-    const fingerprint = fingerprintOf(row);
-    if (fingerprint === row.airtableSyncedFingerprint) continue;
-
-    const profile = await fetchHcaProfile(row.userId);
-    if (!profile) continue;
-
-    const hackatimeUserId = row.slackId ? await resolveHackatimeUserId(row.slackId) : null;
-
-    const fields: Partial<Omit<YswsProjectSubmission, "id">> = {
-      codeUrl: row.codeUrl,
-      playableUrl: row.playableUrl,
-      description: row.description,
-      screenshot: [toAttachment(row.screenshotUrl)],
-      githubUsername: parseGithubUsername(row.codeUrl),
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      email: profile.email,
-      birthday: profile.birthday ? toUnixSeconds(profile.birthday) : null,
-      addressLine1: profile.address?.line1 ?? null,
-      addressLine2: profile.address?.line2 ?? null,
-      city: profile.address?.city ?? null,
-      stateProvince: profile.address?.state ?? null,
-      country: profile.address?.country ?? null,
-      zipPostalCode: profile.address?.postalCode ?? null,
-      optionalOverrideHoursSpent: row.hours,
-      justificationHackatimeProjectNameSDateRangeS: hackatimeJustificationOf(row.hackatimeProjects),
-      justificationSubmitterHackatimeId: hackatimeUserId !== null ? String(hackatimeUserId) : null
-    };
-
-    let recordId = row.airtableRecordId;
-    if (recordId) {
-      await airtable.update(YswsProjectSubmissiontable, { id: recordId, ...fields });
-    } else {
-      recordId = (await airtable.insert(YswsProjectSubmissiontable, fields)).id;
+    // One project's write failing (bad data, a transient Airtable error,
+    // whatever) shouldn't stop every other project queued behind it in this
+    // run from being synced — isolate each row and keep going.
+    try {
+      await syncOneProject(row);
+    } catch (error) {
+      console.error(`Failed to sync project ${row.id} to Airtable:`, error);
     }
-
-    await db
-      .update(project)
-      .set({ airtableRecordId: recordId, airtableSyncedFingerprint: fingerprint })
-      .where(eq(project.id, row.id));
   }
+}
+
+type ProjectRow = {
+  id: string;
+  userId: string;
+  codeUrl: string;
+  playableUrl: string;
+  description: string;
+  screenshotUrl: string;
+  hackatimeProjects: string[];
+  hours: number;
+  slackId: string | null;
+  airtableRecordId: string | null;
+  airtableSyncedFingerprint: string | null;
+};
+
+async function syncOneProject(row: ProjectRow) {
+  const fingerprint = fingerprintOf(row);
+  if (fingerprint === row.airtableSyncedFingerprint) return;
+
+  const profile = await fetchHcaProfile(row.userId);
+  if (!profile) return;
+
+  const hackatimeUserId = row.slackId ? await resolveHackatimeUserId(row.slackId) : null;
+
+  const fields: Partial<Omit<YswsProjectSubmission, "id">> = {
+    codeUrl: row.codeUrl,
+    playableUrl: row.playableUrl,
+    description: row.description,
+    screenshot: [toAttachment(row.screenshotUrl)],
+    githubUsername: parseGithubUsername(row.codeUrl),
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    email: profile.email,
+    birthday: profile.birthday ? toUnixSeconds(profile.birthday) : null,
+    addressLine1: profile.address?.line1 ?? null,
+    addressLine2: profile.address?.line2 ?? null,
+    city: profile.address?.city ?? null,
+    stateProvince: profile.address?.state ?? null,
+    country: profile.address?.country ?? null,
+    zipPostalCode: profile.address?.postalCode ?? null,
+    optionalOverrideHoursSpent: row.hours,
+    justificationHackatimeProjectNameSDateRangeS: hackatimeJustificationOf(row.hackatimeProjects),
+    justificationSubmitterHackatimeId: hackatimeUserId !== null ? String(hackatimeUserId) : null
+  };
+
+  let recordId = row.airtableRecordId;
+  if (recordId) {
+    await airtable.update(YswsProjectSubmissiontable, { id: recordId, ...fields });
+  } else {
+    recordId = (await airtable.insert(YswsProjectSubmissiontable, fields)).id;
+  }
+
+  await db
+    .update(project)
+    .set({ airtableRecordId: recordId, airtableSyncedFingerprint: fingerprint })
+    .where(eq(project.id, row.id));
 }
