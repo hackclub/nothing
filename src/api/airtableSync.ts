@@ -58,10 +58,18 @@ function hackatimeJustificationOf(hackatimeProjects: string[]): string {
   return justification.slice(0, MAX_JUSTIFICATION_LENGTH);
 }
 
-// Airtable returns HTTP 404 with error "NOT_FOUND" when the record id no
-// longer exists — e.g. someone deleted it in the Airtable UI.
+// Airtable returns 404 "NOT_FOUND" for some missing records, but — to avoid
+// letting a caller probe whether a record id exists at all — actually
+// returns 403 "NOT_AUTHORIZED" for others (a documented Airtable API quirk).
+// Both mean the same thing here: this record id no longer exists, e.g.
+// someone deleted it in the Airtable UI.
 function isRecordNotFoundError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "statusCode" in error && error.statusCode === 404;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "statusCode" in error &&
+    (error.statusCode === 404 || error.statusCode === 403)
+  );
 }
 
 // A plain read, so an unchanged project only costs this (not a full
