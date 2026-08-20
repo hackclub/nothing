@@ -85,10 +85,23 @@ async function airtableRecordExists(recordId: string): Promise<boolean> {
 }
 
 // Cheap fingerprint of exactly the project fields that feed Airtable — NOT
-// `project.updatedAt`, since that also bumps on unrelated writes (e.g. the
-// live Hackatime hours recalculation) that shouldn't trigger a re-sync.
-function fingerprintOf(row: { codeUrl: string; playableUrl: string; description: string; screenshotUrl: string }) {
-  return JSON.stringify([row.codeUrl, row.playableUrl, row.description, row.screenshotUrl]);
+// `project.updatedAt`, since that also bumps on unrelated writes that
+// shouldn't trigger a re-sync on their own.
+//
+// `hours` IS included: it's kept live by recalcProjectHours as Hackatime
+// keeps accruing, and optionalOverrideHoursSpent /
+// justificationHackatimeProjectNameSDateRangeS are meant to be read
+// together — so a change to one should push both back to Airtable, not just
+// silently drift the hours number out of sync with the justification text
+// sitting next to it.
+function fingerprintOf(row: {
+  codeUrl: string;
+  playableUrl: string;
+  description: string;
+  screenshotUrl: string;
+  hours: number;
+}) {
+  return JSON.stringify([row.codeUrl, row.playableUrl, row.description, row.screenshotUrl, row.hours]);
 }
 
 // Runs every minute (see the "airtable:sync" scheduled task) to push
