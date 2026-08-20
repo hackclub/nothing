@@ -4,7 +4,7 @@ import { db } from "~/api/db";
 import { airtable } from "~/lib/airtable";
 import { YswsProjectSubmissiontable, type YswsProjectSubmission } from "~/lib/airtable/appmxwVLLFD7VngR7";
 import { fetchHcaProfile } from "~/api/hca";
-import { HACKATIME_START_DATE, HACKATIME_END_DATE, resolveHackatimeUserId } from "~/api/hackatime";
+import { HACKATIME_START_DATE, HACKATIME_DISPLAY_END_DATE, resolveHackatimeUserId } from "~/api/hackatime";
 import { project, user } from "../../auth-schema";
 
 // Only the fields airtable-ts's toAirtable() for attachments actually reads
@@ -43,7 +43,7 @@ function formatUsDate(isoDate: string): string {
 // Every project was measured over the same fixed program window (there's no
 // per-project edit/resubmission flow that would narrow this to "since the
 // last update"), so every selected Hackatime project name gets that same range.
-const HACKATIME_DATE_RANGE = `${formatUsDate(HACKATIME_START_DATE)}-${formatUsDate(HACKATIME_END_DATE)}`;
+const HACKATIME_DATE_RANGE = `${formatUsDate(HACKATIME_START_DATE)}-${formatUsDate(HACKATIME_DISPLAY_END_DATE)}`;
 
 // Airtable's long text fields cap out at 100,000 characters.
 const MAX_JUSTIFICATION_LENGTH = 100_000;
